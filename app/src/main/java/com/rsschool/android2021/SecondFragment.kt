@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 
 class SecondFragment : Fragment() {
@@ -23,37 +24,35 @@ class SecondFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        enableActionBar(true)
         result = view.findViewById(R.id.result)
         backButton = view.findViewById(R.id.back)
 
-        val min = arguments?.getInt(MIN_VALUE_KEY) ?: 0
-        val max = arguments?.getInt(MAX_VALUE_KEY) ?: 0
-
-        result?.text = generate(min, max).toString()
+        val min = arguments?.getInt(MIN_VALUE_KEY)
+            ?: throw Exception("Null MIN value passed to the second fragment")
+        val max = arguments?.getInt(MAX_VALUE_KEY)
+            ?: throw Exception("Null MAX value passed to the second fragment")
+        result?.text = generateRandom(min, max).toString()
 
         backButton?.setOnClickListener {
-            // TODO: implement back
+            mainActivity().openFirstFragment(parentFragmentManager)
         }
     }
 
-    private fun generate(min: Int, max: Int): Int {
-        // TODO: generate random number
-        return 0
+    private fun generateRandom(min: Int, max: Int): Int {
+        val random = (min..max).random()
+        shitSmartCast().onGenerateRandom(random)
+        return random
     }
 
     companion object {
 
         @JvmStatic
-        fun newInstance(min: Int, max: Int): SecondFragment {
-            val fragment = SecondFragment()
-            val args = Bundle()
-
-            // TODO: implement adding arguments
-
-            return fragment
+        fun newInstance(min: Int, max: Int) = SecondFragment().apply {
+            arguments = bundleOf(MIN_VALUE_KEY to min, MAX_VALUE_KEY to max)
         }
 
-        private const val MIN_VALUE_KEY = "MIN_VALUE"
-        private const val MAX_VALUE_KEY = "MAX_VALUE"
+        const val MIN_VALUE_KEY = "MIN_VALUE"
+        const val MAX_VALUE_KEY = "MAX_VALUE"
     }
 }

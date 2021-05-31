@@ -1,15 +1,17 @@
 package com.rsschool.android2021
 
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.os.bundleOf
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+
 
 class FirstFragment : Fragment() {
-
     private var generateButton: Button? = null
     private var previousResult: TextView? = null
 
@@ -21,33 +23,129 @@ class FirstFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_first, container, false)
     }
 
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.settings_menu, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setHasOptionsMenu(true)
+        enableActionBar(false)
         previousResult = view.findViewById(R.id.previous_result)
         generateButton = view.findViewById(R.id.generate)
+        val minView = view.findViewById<TextInputEditText>(R.id.min_value)
+        val maxView = view.findViewById<TextInputEditText>(R.id.max_value)
+        val minLayout = view.findViewById<TextInputLayout>(R.id.min_value_layout)
+        val maxLayout = view.findViewById<TextInputLayout>(R.id.max_value_layout)
 
-        val result = arguments?.getInt(PREVIOUS_RESULT_KEY)
-        previousResult?.text = "Previous result: ${result.toString()}"
+        var min: Int? =
+            if (!MainActivity.autoClearOption) if (MainActivity.min == 0) null else MainActivity.min else null
+        var max: Int? =
+            if (!MainActivity.autoClearOption) if (MainActivity.max == 0) null else MainActivity.max else null
 
-        // TODO: val min = ...
-        // TODO: val max = ...
+        previousResult?.text = resources.getString(
+            R.string.previous_result_text,
+            arguments?.getInt(PREVIOUS_RESULT_KEY)
+                ?: throw Exception("Null PREVIOUS value passed to the first fragment")
+        )
+        min?.let {
+            minView.setText(it.toString())
+        }
+        max?.let {
+            maxView.setText(it.toString())
+        }
+
+        view.setOnClickListener {
+            hideKeyboard()
+        }
+
+        minView.doAfterTextChanged {
+            minView.text?.run {
+                if (isEmpty()) {
+                    min = null
+                } else {
+                    toString().toLongOrNull()?.let {
+                        if (it > Int.MAX_VALUE) {
+                            minLayout.error = getString(R.string.min_more_int_max)
+                            min = null
+                            minView.clearText()
+                        } else {
+                            min = it.toInt()
+                        }
+                    }
+                }
+            }
+        }
+
+        maxView.doAfterTextChanged {
+            maxView.text?.run {
+                if (isEmpty()) {
+                    max = null
+                } else {
+                    toString().toLongOrNull()?.let {
+                        if (it > Int.MAX_VALUE) {
+                            maxLayout.error = getString(R.string.max_more_int_max)
+                            max = null
+                            maxView.clearText()
+                        } else {
+                            max = it.toInt()
+                        }
+                    }
+                }
+            }
+        }
 
         generateButton?.setOnClickListener {
-            // TODO: send min and max to the SecondFragment
+            minLayout.clearError()
+            when {
+                min.isNull() -> minLayout.error = getString(R.string.min_empty)
+                max.isNull() -> maxLayout.error = getString(R.string.max_empty)
+                min!! <= -1 -> minLayout.error = getString(R.string.min_empty)
+                max!! <= -1 -> maxLayout.error = getString(R.string.max_empty)
+                min!! > max!! -> maxLayout.error = getString(R.string.min_more_max)
+                MainActivity.equalityPossible == false && min == max -> minLayout.error = getString(R.string.min_equal_max)
+                else -> {
+                    hideKeyboard()
+                    shitSmartCast().onGenerateButtonClick(min!!, max!!)
+                    mainActivity().openSecondFragment(parentFragmentManager)
+                }
+            }
         }
     }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            //Restore AutoClearSetting state from static var
+            R.id.menu_settingsFragment -> {
+                item.subMenu.findItem(R.id.autoClearSettingFragment).isChecked =
+                    MainActivity.autoClearOption
+                item.subMenu.findItem(R.id.equalitySettingFragment).isChecked =
+                    MainActivity.equalityPossible
+                true
+            }
+            R.id.autoClearSettingFragment -> {
+                item.isChecked = !item.isChecked
+                MainActivity.autoClearOption = item.isChecked
+                true
+            }
+            R.id.equalitySettingFragment -> {
+                item.isChecked = !item.isChecked
+                MainActivity.equalityPossible = item.isChecked
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
 
     companion object {
 
         @JvmStatic
-        fun newInstance(previousResult: Int): FirstFragment {
-            val fragment = FirstFragment()
-            val args = Bundle()
-            args.putInt(PREVIOUS_RESULT_KEY, previousResult)
-            fragment.arguments = args
-            return fragment
+        fun newInstance(previousResult: Int) = FirstFragment().apply {
+            arguments = bundleOf(PREVIOUS_RESULT_KEY to previousResult)
         }
 
-        private const val PREVIOUS_RESULT_KEY = "PREVIOUS_RESULT"
+        const val PREVIOUS_RESULT_KEY = "PREVIOUS_RESULT"
     }
 }
